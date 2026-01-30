@@ -18,7 +18,6 @@ tabs = st.tabs([
     "המלצות גפ\"ן"
 ])
 
-if uploaded_file:
     if uploaded_file.name.endswith(".xls"):
     df = pd.read_excel(uploaded_file, engine="xlrd")
 else:
