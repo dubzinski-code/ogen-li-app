@@ -33,23 +33,29 @@ if uploaded_file is not None:
         st.stop()
 
     # --- לשונית 1 ---
+       # --- לשונית 1 ---
     with tabs[0]:
         st.header("תמונת מצב כיתתית")
 
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("מספר תלמידים בכיתה", df["תלמידי כיתה"].nunique())
+            st.metric(
+                "מספר תלמידים בכיתה",
+                df["תלמידי כיתה"].nunique()
+            )
         with col2:
-            st.metric("מספר רשומות בקובץ", len(df))
+            st.metric(
+                "מספר רשומות בקובץ",
+                len(df)
+            )
 
-       st.info(
-    "תצוגה זו מציגה תמונת מצב כיתתית-מערכתית המבוססת על נתוני העוגן. "
-    "בשלב זה אין הצגת שמות תלמידים, אלא מבט כולל לצורך תכנון פדגוגי."
-)
- 
+        st.info(
+            "תצוגה זו מציגה תמונת מצב כיתתית-מערכתית המבוססת על נתוני העוגן. "
+            "בשלב זה אין הצגת שמות תלמידים, אלא מבט כולל לצורך תכנון פדגוגי."
+        )
 
         st.subheader("התפלגות נתונים מספריים")
-        numeric_cols = df.select_dtypes(include="number")
+        numeric_cols = df.select_dtypes(include='number')
         if not numeric_cols.empty:
             st.bar_chart(numeric_cols)
         else:
