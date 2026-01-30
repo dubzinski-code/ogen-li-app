@@ -8,7 +8,7 @@ st.caption("כלי מבוסס נתוני עוגן לתכנון כיתתי ואי
 
 uploaded_file = st.file_uploader(
     "העלאת קובץ עוגן (Excel)",
-    type=["xlsx"]
+    type=["xlsx", "xls"]
 )
 
 tabs = st.tabs([
@@ -19,6 +19,9 @@ tabs = st.tabs([
 ])
 
 if uploaded_file:
+    if uploaded_file.name.endswith(".xls"):
+    df = pd.read_excel(uploaded_file, engine="xlrd")
+else:
     df = pd.read_excel(uploaded_file)
 
     # ניקוי נתונים בסיסי
