@@ -42,11 +42,11 @@ if uploaded_file is not None:
         with col2:
             st.metric("מספר רשומות בקובץ", len(df))
 
-        st.subheader("רשימת תלמידים")
-        st.dataframe(
-            df[["תלמידי כיתה"]].drop_duplicates().reset_index(drop=True),
-            use_container_width=True
-        )
+       st.info(
+    "תצוגה זו מציגה תמונת מצב כיתתית-מערכתית המבוססת על נתוני העוגן. "
+    "בשלב זה אין הצגת שמות תלמידים, אלא מבט כולל לצורך תכנון פדגוגי."
+)
+ 
 
         st.subheader("התפלגות נתונים מספריים")
         numeric_cols = df.select_dtypes(include="number")
