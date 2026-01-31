@@ -28,15 +28,15 @@ if uploaded_file is not None:
         st.error("העמודה 'תלמידי כיתה' לא נמצאה בקובץ.")
         st.stop()
 
-    # -----------------------------
+    # =============================
     # לשונית 1 – תמונת מצב כיתתית
-    # -----------------------------
+    # =============================
     with tabs[0]:
         st.header("תמונת מצב כיתתית")
 
         st.info(
             "תצוגה זו מציגה תמונת מצב כיתתית-מערכתית המבוססת על נתוני העוגן. "
-            "ההצגה לפי תחומים וכוללת שמות תלמידים רק במוקדי קושי."
+            "ההצגה לפי תחומים, עם זיהוי מוקדי קושי וחוזקות בולטים."
         )
 
         difficulty_columns = {
@@ -57,6 +57,7 @@ if uploaded_file is not None:
 
         for domain, col in difficulty_columns.items():
             if col in df.columns:
+                # מסננים תלמידים מתקשים
                 struggling_df = df[df[col].isin(["מתקשה", "מתקשה מאד"])]
 
                 if not struggling_df.empty:
@@ -67,12 +68,21 @@ if uploaded_file is not None:
                         .tolist()
                     )
 
-                    # קושי משותף – התיאור השכיח ביותר
-                    common_difficulty = (
+                    # חילוץ סוגי קושי (מתוך טקסט חופשי)
+                    difficulty_texts = (
                         struggling_df[col]
-                        .value_counts()
-                        .idxmax()
+                        .astype(str)
+                        .str.replace("מתקשה מאד", "", regex=False)
+                        .str.replace("מתקשה", "", regex=False)
+                        .str.strip()
                     )
+
+                    difficulty_texts = difficulty_texts[difficulty_texts != ""]
+
+                    if not difficulty_texts.empty:
+                        common_difficulty = difficulty_texts.value_counts().idxmax()
+                    else:
+                        common_difficulty = "קושי מגוון – נדרש מיפוי פרטני"
 
                     graph_data[domain] = len(student_names)
 
@@ -90,40 +100,46 @@ if uploaded_file is not None:
         else:
             st.info("לא נמצאו תלמידים מתקשים או מתקשים מאד באף תחום.")
 
-        # -----------------------------
+        # =============================
         # חוזקות כיתתיות
-        # -----------------------------
+        # =============================
         st.subheader("חוזקות ותחומי עניין כיתתיים")
 
         strengths_col = "התלמיד מגלה עניין ו/או חוזקות בתחום ייחודי אחד או יותר"
         if strengths_col in df.columns:
-            strengths_count = (df[strengths_col] == "כן").sum()
-            total_students = df["תלמידי כיתה"].nunique()
+            strengths_df = df[df[strengths_col] == "כן"]
 
-            st.metric(
-                "מספר תלמידים עם תחומי עניין / חוזקות",
-                strengths_count
-            )
-
-            if strengths_count >= max(3, int(0.2 * total_students)):
-                st.write(
-                    "בכיתה קיימת נוכחות משמעותית של תלמידים עם תחומי עניין וחוזקות, "
-                    "המהווה פוטנציאל להובלה, העשרה ויוזמה כיתתית."
+            if not strengths_df.empty:
+                strength_texts = (
+                    strengths_df[strengths_col]
+                    .astype(str)
+                    .str.replace("כן", "", regex=False)
+                    .str.strip()
                 )
+
+                strength_texts = strength_texts[strength_texts != ""]
+
+                if not strength_texts.empty:
+                    common_strength = strength_texts.value_counts().idxmax()
+                else:
+                    common_strength = "חוזקות מגוונות – ללא תחום בולט אחד"
+
+                st.metric(
+                    "מספר תלמידים עם תחומי עניין / חוזקות",
+                    len(strengths_df)
+                )
+                st.write(f"**החוזקה הבולטת בכיתה:** {common_strength}")
             else:
-                st.write(
-                    "זוהו מספר תלמידים עם תחומי עניין וחוזקות, "
-                    "בהיקף נקודתי בשלב זה."
-                )
+                st.write("לא זוהו חוזקות בולטות בכיתה.")
         else:
             st.info("לא נמצאה עמודת חוזקות בקובץ.")
 
-    # -----------------------------
-    # שאר הלשוניות – שלד
-    # -----------------------------
+    # =============================
+    # לשוניות נוספות – שלד
+    # =============================
     with tabs[1]:
         st.header("תוכנית עבודה מרובדת")
-        st.info("פיתוח בהמשך – בהתאם ל-MTSS.")
+        st.info("פיתוח בהמשך בהתאם ל-MTSS.")
 
     with tabs[2]:
         st.header("תוכנית התערבות אישית")
