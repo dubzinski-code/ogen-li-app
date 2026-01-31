@@ -1,9 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-# -----------------------------
-# הגדרות כלליות
-# -----------------------------
 st.set_page_config(page_title="עוגן לי", layout="wide")
 
 st.title("עוגן לי")
@@ -21,16 +18,12 @@ tabs = st.tabs([
     "המלצות גפ\"ן"
 ])
 
-# -----------------------------
-# טעינת קובץ
-# -----------------------------
 if uploaded_file is not None:
     if uploaded_file.name.endswith(".xls"):
         df = pd.read_excel(uploaded_file, engine="xlrd")
     else:
         df = pd.read_excel(uploaded_file)
 
-    # בדיקת עמודת תלמידים
     if "תלמידי כיתה" not in df.columns:
         st.error("העמודה 'תלמידי כיתה' לא נמצאה בקובץ.")
         st.stop()
@@ -43,10 +36,9 @@ if uploaded_file is not None:
 
         st.info(
             "תצוגה זו מציגה תמונת מצב כיתתית-מערכתית המבוססת על נתוני העוגן. "
-            "ההצגה אגרגטיבית לפי תחומים, וכוללת שמות תלמידים רק במוקדי קושי."
+            "ההצגה לפי תחומים וכוללת שמות תלמידים רק במוקדי קושי."
         )
 
-        # מיפוי תחומים לעמודות
         difficulty_columns = {
             "שפה": "שליטה במיומנויות השפה (דבורה וכתובה) בהתאם למצופה מבני הגיל",
             "מתמטיקה": "שליטה במתמטיקה בהתאם למצופה מבני הגיל",
@@ -59,13 +51,12 @@ if uploaded_file is not None:
             "חושי-תנועתי-מרחבי": "תפקוד חושי - תנועתי - מרחבי בהתאם למצופה מבני הגיל"
         }
 
-        st.subheader("מוקדי קושי כיתתיים (מתקשה / מתקשה מאד)")
+        st.subheader("מוקדי קושי כיתתיים")
 
         graph_data = {}
 
         for domain, col in difficulty_columns.items():
             if col in df.columns:
-                # סינון תלמידים מתקשים
                 struggling_df = df[df[col].isin(["מתקשה", "מתקשה מאד"])]
 
                 if not struggling_df.empty:
@@ -76,20 +67,19 @@ if uploaded_file is not None:
                         .tolist()
                     )
 
-                    # חילוץ הקושי המשותף (טקסט אחרי הדרוג, אם קיים)
-                    difficulties = (
+                    # קושי משותף – התיאור השכיח ביותר
+                    common_difficulty = (
                         struggling_df[col]
-                        .astype(str)
-                        .tolist()
+                        .value_counts()
+                        .idxmax()
                     )
 
                     graph_data[domain] = len(student_names)
 
                     st.markdown(f"### {domain}")
                     st.write(f"**מספר תלמידים:** {len(student_names)}")
-                    st.write(
-                        "**שמות התלמידים:** " + ", ".join(student_names)
-                    )
+                    st.write(f"**שמות התלמידים:** {', '.join(student_names)}")
+                    st.write(f"**קושי משותף בולט:** {common_difficulty}")
 
         if graph_data:
             st.subheader("התפלגות קשיים לפי תחומים")
@@ -100,51 +90,55 @@ if uploaded_file is not None:
         else:
             st.info("לא נמצאו תלמידים מתקשים או מתקשים מאד באף תחום.")
 
+        # -----------------------------
         # חוזקות כיתתיות
+        # -----------------------------
         st.subheader("חוזקות ותחומי עניין כיתתיים")
 
         strengths_col = "התלמיד מגלה עניין ו/או חוזקות בתחום ייחודי אחד או יותר"
         if strengths_col in df.columns:
             strengths_count = (df[strengths_col] == "כן").sum()
+            total_students = df["תלמידי כיתה"].nunique()
+
             st.metric(
                 "מספר תלמידים עם תחומי עניין / חוזקות",
                 strengths_count
             )
+
+            if strengths_count >= max(3, int(0.2 * total_students)):
+                st.write(
+                    "בכיתה קיימת נוכחות משמעותית של תלמידים עם תחומי עניין וחוזקות, "
+                    "המהווה פוטנציאל להובלה, העשרה ויוזמה כיתתית."
+                )
+            else:
+                st.write(
+                    "זוהו מספר תלמידים עם תחומי עניין וחוזקות, "
+                    "בהיקף נקודתי בשלב זה."
+                )
         else:
             st.info("לא נמצאה עמודת חוזקות בקובץ.")
 
     # -----------------------------
-    # לשונית 2 – תוכנית עבודה מרובדת
+    # שאר הלשוניות – שלד
     # -----------------------------
     with tabs[1]:
         st.header("תוכנית עבודה מרובדת")
-        st.info(
-            "לשונית זו תציג מענים כיתתיים לפי MTSS: "
-            "אוניברסלי, קבוצתי ואינטנסיבי (שלד בשלב זה)."
-        )
+        st.info("פיתוח בהמשך – בהתאם ל-MTSS.")
 
-    # -----------------------------
-    # לשונית 3 – תוכנית התערבות אישית
-    # -----------------------------
     with tabs[2]:
         st.header("תוכנית התערבות אישית")
-
         student = st.selectbox(
             "בחרי תלמיד",
             sorted(df["תלמידי כיתה"].dropna().unique())
         )
-
         st.subheader(f"תוכנית אישית עבור: {student}")
         st.info("פירוט אישי יורחב בשלב הבא.")
 
-    # -----------------------------
-    # לשונית 4 – המלצות גפ\"ן
-    # -----------------------------
     with tabs[3]:
         st.header("המלצות גפ\"ן")
         st.info(
             "כיוונים פדגוגיים כלליים למענה כיתתי או קבוצתי "
-            "(ללא ציון שמות תוכניות, ספקים או מוצרים)."
+            "(ללא ציון שמות תוכניות או ספקים)."
         )
 
 else:
