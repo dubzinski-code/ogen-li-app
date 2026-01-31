@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import re
 
 st.set_page_config(page_title="עוגן לי", layout="wide")
 
@@ -20,27 +19,24 @@ tabs = st.tabs([
 ])
 
 
-def extract_meaningful_text(cell_text, keywords):
+def extract_second_line(cell_text):
     """
-    מחלץ את הטקסט המשמעותי (סוג קושי / חוזקה)
-    מתוך תא שמכיל גם דירוג וגם תיאור.
+    מחלץ את השורה השנייה בתא,
+    בהנחה שהמבנה הוא:
+    שורה 1: סטטוס
+    שורה 2: '- טקסט'
     """
     if pd.isna(cell_text):
         return None
 
-    text = str(cell_text).strip()
+    lines = str(cell_text).splitlines()
 
-    # פיצול לפי ירידת שורה
-    parts = re.split(r'\n|–|-|;|:', text)
+    for line in lines:
+        line = line.strip()
+        if line.startswith("-"):
+            return line.lstrip("-").strip()
 
-    # מסיר מילות דירוג
-    cleaned = [
-        p.strip()
-        for p in parts
-        if p.strip() and p.strip() not in keywords
-    ]
-
-    return cleaned[0] if cleaned else None
+    return None
 
 
 if uploaded_file is not None:
@@ -60,8 +56,8 @@ if uploaded_file is not None:
         st.header("תמונת מצב כיתתית")
 
         st.info(
-            "תמונה כיתתית-מערכתית המבוססת על נתוני העוגן, "
-            "כוללת מוקדי קושי וחוזקות בולטים לפי שכיחות."
+            "תמונה כיתתית-מערכתית המבוססת על נתוני העוגן. "
+            "הצגת מוקדי קושי וחוזקות לפי שכיחות."
         )
 
         difficulty_columns = {
@@ -89,17 +85,12 @@ if uploaded_file is not None:
                 if not struggling_df.empty:
                     names = struggling_df["תלמידי כיתה"].dropna().unique().tolist()
 
-                    difficulties = struggling_df[col].apply(
-                        lambda x: extract_meaningful_text(
-                            x, ["מתקשה", "מתקשה מאד"]
-                        )
-                    ).dropna()
+                    difficulties = struggling_df[col].apply(extract_second_line).dropna()
 
-                    common_difficulty = (
-                        difficulties.value_counts().idxmax()
-                        if not difficulties.empty
-                        else "קושי מגוון"
-                    )
+                    if not difficulties.empty:
+                        common_difficulty = difficulties.value_counts().idxmax()
+                    else:
+                        common_difficulty = "לא זוהה קושי משותף חד-משמעי"
 
                     graph_data[domain] = len(names)
 
@@ -126,10 +117,12 @@ if uploaded_file is not None:
         strengths_col = "התלמיד מגלה עניין ו/או חוזקות בתחום ייחודי אחד או יותר"
 
         if strengths_col in df.columns:
-            strengths_df = df[df[strengths_col].astype(str).str.contains("כן", na=False)]
+            strengths_df = df[
+                df[strengths_col].astype(str).str.contains("כן", na=False)
+            ]
 
             strengths = strengths_df[strengths_col].apply(
-                lambda x: extract_meaningful_text(x, ["כן", "לא", "לא ידוע"])
+                extract_second_line
             ).dropna()
 
             if not strengths.empty:
@@ -138,7 +131,9 @@ if uploaded_file is not None:
             else:
                 st.write("לא זוהתה חוזקה בולטת אחת.")
 
-    # שאר הלשוניות – שלד
+    # =============================
+    # לשוניות נוספות – שלד
+    # =============================
     with tabs[1]:
         st.header("תוכנית עבודה מרובדת")
         st.info("פיתוח בהמשך.")
