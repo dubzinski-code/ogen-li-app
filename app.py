@@ -22,10 +22,10 @@ tabs = st.tabs([
 
 def extract_meaningful_line(cell_text, ignore_words):
     """
-    מחלץ שורה משמעותית מתא בפורמט:
-    שורה 1: סטטוס (מתקשה / כן)
-    שורה 2: '- טקסט'
-    כולל ניקוי רווחים כפולים
+    מחלץ את הטקסט המשמעותי מתוך תא בעוגן.
+    מבנה התא:
+    שורה 1 – סטטוס (מתקשה / מתקשה מאד / כן)
+    שורה 2 – '- טקסט' (ייתכנו רווחים כפולים)
     """
     if pd.isna(cell_text):
         return None
@@ -35,11 +35,11 @@ def extract_meaningful_line(cell_text, ignore_words):
     for line in lines:
         clean = line.strip()
 
-        # דילוג על שורת סטטוס
+        # דילוג על שורות סטטוס
         if clean in ignore_words:
             continue
 
-        # הסרת מקפים / bullets
+        # הסרת מקפים / bullets בתחילת שורה
         clean = re.sub(r'^[\-\–\—\•\*\s]+', '', clean)
 
         # איחוד רווחים כפולים לרווח אחד
@@ -52,11 +52,13 @@ def extract_meaningful_line(cell_text, ignore_words):
 
 
 if uploaded_file is not None:
+    # קריאת הקובץ
     if uploaded_file.name.endswith(".xls"):
         df = pd.read_excel(uploaded_file, engine="xlrd")
     else:
         df = pd.read_excel(uploaded_file)
 
+    # בדיקת עמודת תלמידים
     if "תלמידי כיתה" not in df.columns:
         st.error("העמודה 'תלמידי כיתה' לא נמצאה בקובץ.")
         st.stop()
@@ -66,6 +68,10 @@ if uploaded_file is not None:
     # =============================
     with tabs[0]:
         st.header("תמונת מצב כיתתית")
+        st.info(
+            "תמונה כיתתית-מערכתית המבוססת על נתוני העוגן. "
+            "מוצגים מוקדי קושי וחוזקות בולטים לפי שכיחות."
+        )
 
         difficulty_columns = {
             "שפה": "שליטה במיומנויות השפה (דבורה וכתובה) בהתאם למצופה מבני הגיל",
@@ -79,45 +85,52 @@ if uploaded_file is not None:
             "חושי-תנועתי-מרחבי": "תפקוד חושי - תנועתי - מרחבי בהתאם למצופה מבני הגיל"
         }
 
+        st.subheader("מוקדי קושי כיתתיים")
+
         graph_data = {}
 
         for domain, col in difficulty_columns.items():
-            if col in df.columns:
-                struggling_df = df[
-                    df[col].astype(str).str.contains("מתקשה", na=False)
-                ]
+            if col not in df.columns:
+                continue
 
-                if not struggling_df.empty:
-                    names = struggling_df["תלמידי כיתה"].dropna().unique().tolist()
+            # תלמידים מתקשים / מתקשים מאד
+            struggling_df = df[
+                df[col].astype(str).str.contains("מתקשה", na=False)
+            ]
 
-                    difficulties = struggling_df[col].apply(
-                        lambda x: extract_meaningful_line(
-                            x, ["מתקשה", "מתקשה מאד"]
-                        )
-                    ).dropna()
+            if struggling_df.empty:
+                continue
 
-                    if not difficulties.empty:
-                        common_difficulty = difficulties.value_counts().idxmax()
-                     else:
-                         common_difficulty = "לא צוין סוג קושי שכיח בנתונים"
+            names = struggling_df["תלמידי כיתה"].dropna().unique().tolist()
 
+            difficulties = struggling_df[col].apply(
+                lambda x: extract_meaningful_line(
+                    x, ["מתקשה", "מתקשה מאד"]
+                )
+            ).dropna()
 
-                    graph_data[domain] = len(names)
+            if not difficulties.empty:
+                common_difficulty = difficulties.value_counts().idxmax()
+            else:
+                common_difficulty = "לא צוין סוג קושי שכיח בנתונים"
 
-                    st.markdown(f"### {domain}")
-                    st.write(f"**מספר תלמידים:** {len(names)}")
-                    st.write(f"**שמות התלמידים:** {', '.join(names)}")
-                    st.write(f"**קושי משותף בולט:** {common_difficulty}")
+            graph_data[domain] = len(names)
+
+            st.markdown(f"### {domain}")
+            st.write(f"**מספר תלמידים:** {len(names)}")
+            st.write(f"**שמות התלמידים:** {', '.join(names)}")
+            st.write(f"**קושי משותף בולט:** {common_difficulty}")
 
         if graph_data:
             st.subheader("התפלגות קשיים לפי תחומים")
-            st.bar_chart(
-                pd.DataFrame.from_dict(
-                    graph_data,
-                    orient="index",
-                    columns=["מספר תלמידים מתקשים"]
-                )
+            chart_df = pd.DataFrame.from_dict(
+                graph_data,
+                orient="index",
+                columns=["מספר תלמידים מתקשים"]
             )
+            st.bar_chart(chart_df)
+        else:
+            st.info("לא זוהו מוקדי קושי כיתתיים.")
 
         # =============================
         # חוזקות כיתתיות
@@ -144,5 +157,28 @@ if uploaded_file is not None:
 
             st.write(f"**החוזקה הבולטת בכיתה:** {common_strength}")
 
-            else:
-            st.warning("יש להעלות קובץ עוגן כדי להתחיל.")
+    # =============================
+    # לשוניות נוספות – שלד
+    # =============================
+    with tabs[1]:
+        st.header("תוכנית עבודה מרובדת")
+        st.info("פיתוח בהמשך בהתאם ל-MTSS.")
+
+    with tabs[2]:
+        st.header("תוכנית התערבות אישית")
+        student = st.selectbox(
+            "בחרי תלמיד",
+            sorted(df["תלמידי כיתה"].dropna().unique())
+        )
+        st.subheader(f"תוכנית אישית עבור: {student}")
+        st.info("הרחבה בשלב הבא.")
+
+    with tabs[3]:
+        st.header("המלצות גפ\"ן")
+        st.info(
+            "כיוונים פדגוגיים כלליים למענה כיתתי או קבוצתי "
+            "(ללא המלצה על תוכניות ספציפיות)."
+        )
+
+else:
+    st.warning("יש להעלות קובץ עוגן כדי להתחיל.")
