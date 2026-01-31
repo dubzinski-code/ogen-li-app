@@ -96,7 +96,11 @@ if uploaded_file is not None:
                         )
                     ).dropna()
 
-                    common_difficulty = difficulties.value_counts().idxmax()
+                    if not difficulties.empty:
+    common_difficulty = difficulties.value_counts().idxmax()
+else:
+    common_difficulty = "לא צוין סוג קושי שכיח בנתונים"
+
 
                     graph_data[domain] = len(names)
 
@@ -133,7 +137,11 @@ if uploaded_file is not None:
                 )
             ).dropna()
 
-            common_strength = strengths.value_counts().idxmax()
+            if not strengths.empty:
+    common_strength = strengths.value_counts().idxmax()
+else:
+    common_strength = "לא צוין תחום חוזקה שכיח"
+
             st.write(f"**החוזקה הבולטת בכיתה:** {common_strength}")
 
 else:
