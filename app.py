@@ -20,12 +20,11 @@ tabs = st.tabs([
 ])
 
 
-def extract_meaningful_line(cell_text, ignore_words):
+def extract_meaningful_line(cell_text):
     """
     מחלץ את הטקסט המשמעותי מתוך תא בעוגן.
-    מבנה התא:
-    שורה 1 – סטטוס (מתקשה / מתקשה מאד / כן)
-    שורה 2 – '- טקסט' (ייתכנו רווחים כפולים)
+    לוקח אך ורק שורה שמתחילה במקף (או bullet),
+    ומתעלם משורות סטטוס (מתקשה / כן וכו').
     """
     if pd.isna(cell_text):
         return None
@@ -33,32 +32,31 @@ def extract_meaningful_line(cell_text, ignore_words):
     lines = str(cell_text).splitlines()
 
     for line in lines:
-        clean = line.strip()
+        raw = line.strip()
 
         # דילוג על שורות סטטוס
-        if clean in ignore_words:
+        if (
+            "מתקשה" in raw
+            or raw in ["כן", "לא", "לא ידוע"]
+        ):
             continue
 
-        # הסרת מקפים / bullets בתחילת שורה
-        clean = re.sub(r'^[\-\–\—\•\*\s]+', '', clean)
-
-        # איחוד רווחים כפולים לרווח אחד
-        clean = re.sub(r'\s+', ' ', clean).strip()
-
-        if clean:
-            return clean
+        # חיפוש שורה שמתחילה במקף / bullet
+        if re.match(r'^[\-\–\—\•\*]', raw):
+            clean = re.sub(r'^[\-\–\—\•\*\s]+', '', raw)
+            clean = re.sub(r'\s+', ' ', clean).strip()
+            if clean:
+                return clean
 
     return None
 
 
 if uploaded_file is not None:
-    # קריאת הקובץ
     if uploaded_file.name.endswith(".xls"):
         df = pd.read_excel(uploaded_file, engine="xlrd")
     else:
         df = pd.read_excel(uploaded_file)
 
-    # בדיקת עמודת תלמידים
     if "תלמידי כיתה" not in df.columns:
         st.error("העמודה 'תלמידי כיתה' לא נמצאה בקובץ.")
         st.stop()
@@ -68,10 +66,6 @@ if uploaded_file is not None:
     # =============================
     with tabs[0]:
         st.header("תמונת מצב כיתתית")
-        st.info(
-            "תמונה כיתתית-מערכתית המבוססת על נתוני העוגן. "
-            "מוצגים מוקדי קושי וחוזקות בולטים לפי שכיחות."
-        )
 
         difficulty_columns = {
             "שפה": "שליטה במיומנויות השפה (דבורה וכתובה) בהתאם למצופה מבני הגיל",
@@ -93,7 +87,6 @@ if uploaded_file is not None:
             if col not in df.columns:
                 continue
 
-            # תלמידים מתקשים / מתקשים מאד
             struggling_df = df[
                 df[col].astype(str).str.contains("מתקשה", na=False)
             ]
@@ -104,9 +97,7 @@ if uploaded_file is not None:
             names = struggling_df["תלמידי כיתה"].dropna().unique().tolist()
 
             difficulties = struggling_df[col].apply(
-                lambda x: extract_meaningful_line(
-                    x, ["מתקשה", "מתקשה מאד"]
-                )
+                extract_meaningful_line
             ).dropna()
 
             if not difficulties.empty:
@@ -123,14 +114,13 @@ if uploaded_file is not None:
 
         if graph_data:
             st.subheader("התפלגות קשיים לפי תחומים")
-            chart_df = pd.DataFrame.from_dict(
-                graph_data,
-                orient="index",
-                columns=["מספר תלמידים מתקשים"]
+            st.bar_chart(
+                pd.DataFrame.from_dict(
+                    graph_data,
+                    orient="index",
+                    columns=["מספר תלמידים מתקשים"]
+                )
             )
-            st.bar_chart(chart_df)
-        else:
-            st.info("לא זוהו מוקדי קושי כיתתיים.")
 
         # =============================
         # חוזקות כיתתיות
@@ -145,9 +135,7 @@ if uploaded_file is not None:
             ]
 
             strengths = strengths_df[strengths_col].apply(
-                lambda x: extract_meaningful_line(
-                    x, ["כן", "לא", "לא ידוע"]
-                )
+                extract_meaningful_line
             ).dropna()
 
             if not strengths.empty:
@@ -162,7 +150,7 @@ if uploaded_file is not None:
     # =============================
     with tabs[1]:
         st.header("תוכנית עבודה מרובדת")
-        st.info("פיתוח בהמשך בהתאם ל-MTSS.")
+        st.info("פיתוח בהמשך.")
 
     with tabs[2]:
         st.header("תוכנית התערבות אישית")
@@ -171,14 +159,10 @@ if uploaded_file is not None:
             sorted(df["תלמידי כיתה"].dropna().unique())
         )
         st.subheader(f"תוכנית אישית עבור: {student}")
-        st.info("הרחבה בשלב הבא.")
 
     with tabs[3]:
         st.header("המלצות גפ\"ן")
-        st.info(
-            "כיוונים פדגוגיים כלליים למענה כיתתי או קבוצתי "
-            "(ללא המלצה על תוכניות ספציפיות)."
-        )
+        st.info("כיוונים פדגוגיים כלליים ללא שמות תוכניות.")
 
 else:
     st.warning("יש להעלות קובץ עוגן כדי להתחיל.")
