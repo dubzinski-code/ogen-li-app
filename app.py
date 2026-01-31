@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 st.set_page_config(page_title="עוגן לי", layout="wide")
 
@@ -19,12 +20,12 @@ tabs = st.tabs([
 ])
 
 
-def extract_second_line(cell_text):
+def extract_meaningful_line(cell_text, ignore_words):
     """
-    מחלץ את השורה השנייה בתא,
-    בהנחה שהמבנה הוא:
-    שורה 1: סטטוס
+    מחלץ שורה משמעותית מתא בפורמט:
+    שורה 1: סטטוס (מתקשה / כן)
     שורה 2: '- טקסט'
+    כולל ניקוי רווחים כפולים
     """
     if pd.isna(cell_text):
         return None
@@ -32,9 +33,20 @@ def extract_second_line(cell_text):
     lines = str(cell_text).splitlines()
 
     for line in lines:
-        line = line.strip()
-        if line.startswith("-"):
-            return line.lstrip("-").strip()
+        clean = line.strip()
+
+        # דילוג על שורת סטטוס
+        if clean in ignore_words:
+            continue
+
+        # הסרת מקפים / bullets
+        clean = re.sub(r'^[\-\–\—\•\*\s]+', '', clean)
+
+        # איחוד רווחים כפולים לרווח אחד
+        clean = re.sub(r'\s+', ' ', clean).strip()
+
+        if clean:
+            return clean
 
     return None
 
@@ -55,11 +67,6 @@ if uploaded_file is not None:
     with tabs[0]:
         st.header("תמונת מצב כיתתית")
 
-        st.info(
-            "תמונה כיתתית-מערכתית המבוססת על נתוני העוגן. "
-            "הצגת מוקדי קושי וחוזקות לפי שכיחות."
-        )
-
         difficulty_columns = {
             "שפה": "שליטה במיומנויות השפה (דבורה וכתובה) בהתאם למצופה מבני הגיל",
             "מתמטיקה": "שליטה במתמטיקה בהתאם למצופה מבני הגיל",
@@ -72,8 +79,6 @@ if uploaded_file is not None:
             "חושי-תנועתי-מרחבי": "תפקוד חושי - תנועתי - מרחבי בהתאם למצופה מבני הגיל"
         }
 
-        st.subheader("מוקדי קושי כיתתיים")
-
         graph_data = {}
 
         for domain, col in difficulty_columns.items():
@@ -85,12 +90,13 @@ if uploaded_file is not None:
                 if not struggling_df.empty:
                     names = struggling_df["תלמידי כיתה"].dropna().unique().tolist()
 
-                    difficulties = struggling_df[col].apply(extract_second_line).dropna()
+                    difficulties = struggling_df[col].apply(
+                        lambda x: extract_meaningful_line(
+                            x, ["מתקשה", "מתקשה מאד"]
+                        )
+                    ).dropna()
 
-                    if not difficulties.empty:
-                        common_difficulty = difficulties.value_counts().idxmax()
-                    else:
-                        common_difficulty = "לא זוהה קושי משותף חד-משמעי"
+                    common_difficulty = difficulties.value_counts().idxmax()
 
                     graph_data[domain] = len(names)
 
@@ -122,33 +128,13 @@ if uploaded_file is not None:
             ]
 
             strengths = strengths_df[strengths_col].apply(
-                extract_second_line
+                lambda x: extract_meaningful_line(
+                    x, ["כן", "לא", "לא ידוע"]
+                )
             ).dropna()
 
-            if not strengths.empty:
-                common_strength = strengths.value_counts().idxmax()
-                st.write(f"**החוזקה הבולטת בכיתה:** {common_strength}")
-            else:
-                st.write("לא זוהתה חוזקה בולטת אחת.")
-
-    # =============================
-    # לשוניות נוספות – שלד
-    # =============================
-    with tabs[1]:
-        st.header("תוכנית עבודה מרובדת")
-        st.info("פיתוח בהמשך.")
-
-    with tabs[2]:
-        st.header("תוכנית התערבות אישית")
-        student = st.selectbox(
-            "בחרי תלמיד",
-            sorted(df["תלמידי כיתה"].dropna().unique())
-        )
-        st.subheader(f"תוכנית אישית עבור: {student}")
-
-    with tabs[3]:
-        st.header("המלצות גפ\"ן")
-        st.info("כיוונים פדגוגיים כלליים ללא שמות תוכניות.")
+            common_strength = strengths.value_counts().idxmax()
+            st.write(f"**החוזקה הבולטת בכיתה:** {common_strength}")
 
 else:
     st.warning("יש להעלות קובץ עוגן כדי להתחיל.")
