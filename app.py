@@ -31,7 +31,7 @@ if uploaded_file is not None:
         df = pd.read_excel(uploaded_file)
 
     # בדיקת עמודת תלמידים
-    if "תלמידי הכיתה" not in df.columns:
+    if "תלמידי כיתה" not in df.columns:
         st.error("העמודה 'תלמידי כיתה' לא נמצאה בקובץ.")
         st.stop()
 
@@ -70,7 +70,7 @@ if uploaded_file is not None:
 
                 if not struggling_df.empty:
                     student_names = (
-                        struggling_df["תלמידי הכיתה"]
+                        struggling_df["תלמידי כיתה"]
                         .dropna()
                         .unique()
                         .tolist()
@@ -131,7 +131,7 @@ if uploaded_file is not None:
 
         student = st.selectbox(
             "בחרי תלמיד",
-            sorted(df["תלמידי הכיתה"].dropna().unique())
+            sorted(df["תלמידי כיתה"].dropna().unique())
         )
 
         st.subheader(f"תוכנית אישית עבור: {student}")
